@@ -1,0 +1,358 @@
+# SubAgent: Rust-based cryptography toolkit
+subagent:
+  name: crypto-toolkit
+  version: 0.4.1
+  description: "High-performance cryptographic operations in Rust"
+  author: security-tools-team
+  license: MIT
+  category: security
+  tags: [crypto, security, rust, encryption]
+  priority: 16
+
+  # Cargo installation
+  installations:
+    - method: cargo
+      platform_id: cargo-rust
+      package_name: crypto-toolkit
+      package_version: ">=0.4.0"
+      requires_install: true
+      install_command: "cargo install crypto-toolkit"
+
+    - method: binary
+      platform_id: binary-linux
+      download_url: "https://github.com/security-tools/crypto-toolkit/releases/download/v0.4.1/crypto-toolkit-linux-x64"
+      checksum: "sha256:abc123..."
+      requires_install: true
+
+    - method: binary
+      platform_id: binary-macos
+      download_url: "https://github.com/security-tools/crypto-toolkit/releases/download/v0.4.1/crypto-toolkit-macos-arm64"
+      checksum: "sha256:def456..."
+      requires_install: true
+
+  # CLI activations
+  activations:
+    - type: cli
+      platform_id: cargo-rust
+      command: crypto-toolkit
+      env_vars:
+        CRYPTO_KEY_DIR:
+          required: false
+          description: "Directory for key storage"
+          default: "~/.crypto-toolkit/keys"
+
+    - type: cli
+      platform_id: binary-linux
+      command: ./crypto-toolkit
+      env_vars:
+        CRYPTO_KEY_DIR:
+          required: false
+          default: "~/.crypto-toolkit/keys"
+
+    - type: cli
+      platform_id: binary-macos
+      command: ./crypto-toolkit
+      env_vars:
+        CRYPTO_KEY_DIR:
+          required: false
+          default: "~/.crypto-toolkit/keys"
+
+  dependencies:
+    - dep_type: system
+      name: openssl
+      required: true
+      description: "OpenSSL library"
+      min_version: "1.1.1"
+
+# Tools
+tools:
+  # Tool 1: Encrypt Data
+  - name: encrypt_data
+    display_name: "Data Encryption"
+    description: "Encrypt data using industry-standard algorithms (AES-256-GCM)"
+    category: security
+    tags: [encryption, aes, security]
+
+    subagent_name: crypto-toolkit
+    subagent_version: "0.4.1"
+
+    prompts:
+      - name: default
+        description: "Standard encryption prompt"
+        template_type: chat
+        system_message: |
+          You are a cryptography assistant.
+          Use the encrypt_data tool to securely encrypt sensitive information.
+          Always use strong encryption algorithms and secure key management.
+        human_message_template: |
+          Encrypt this data: {data}
+          Algorithm: {algorithm}
+          Key derivation: {key_derivation}
+        input_variables: [data, algorithm, key_derivation]
+        partial_variables:
+          algorithm: "AES-256-GCM"
+          key_derivation: "PBKDF2"
+        template: |
+          System: {system_message}
+          Human: {human_message_template}
+
+    parameters:
+      type: object
+      properties:
+        data:
+          type: string
+          description: "Data to encrypt (or file path)"
+        password:
+          type: string
+          description: "Encryption password"
+        algorithm:
+          type: string
+          enum: [AES-256-GCM, AES-256-CBC, ChaCha20-Poly1305]
+          default: "AES-256-GCM"
+          description: "Encryption algorithm"
+        output_format:
+          type: string
+          enum: [base64, hex, file]
+          default: "base64"
+          description: "Output format"
+        key_derivation:
+          type: string
+          enum: [PBKDF2, Argon2]
+          default: "PBKDF2"
+          description: "Key derivation function"
+      required: [data, password]
+
+    structured_output:
+      name: EncryptionResult
+      description: "Encryption result with metadata"
+
+      json_schema:
+        type: object
+        properties:
+          encrypted_data:
+            type: string
+            description: "Encrypted data (base64 or hex)"
+          algorithm:
+            type: string
+          nonce:
+            type: string
+            description: "Nonce/IV used (base64)"
+          salt:
+            type: string
+            description: "Salt for key derivation (base64)"
+          tag:
+            type: string
+            description: "Authentication tag for AEAD (base64)"
+        required: [encrypted_data, algorithm, nonce, salt]
+
+      pydantic_code: |
+        from pydantic import BaseModel, Field
+        from typing import Optional
+
+        class EncryptionResult(BaseModel):
+            encrypted_data: str
+            algorithm: str
+            nonce: str = Field(..., description="Nonce/IV (base64)")
+            salt: str = Field(..., description="Salt (base64)")
+            tag: Optional[str] = Field(None, description="Auth tag for AEAD")
+
+      typescript_type: |
+        interface EncryptionResult {
+          encrypted_data: string;
+          algorithm: string;
+          nonce: string;
+          salt: string;
+          tag?: string;
+        }
+
+      examples:
+        - encrypted_data: "kJ8vN2pQ7..."
+          algorithm: "AES-256-GCM"
+          nonce: "abc123def456"
+          salt: "xyz789uvw012"
+          tag: "ghj345klm678"
+
+    activations:
+      - type: cli_subcommand
+        platform_id: cargo-rust
+        command: crypto-toolkit
+        subcommand: encrypt
+        args: []
+
+      - type: cli_subcommand
+        platform_id: binary-linux
+        command: ./crypto-toolkit
+        subcommand: encrypt
+
+      - type: cli_subcommand
+        platform_id: binary-macos
+        command: ./crypto-toolkit
+        subcommand: encrypt
+
+    protocol: langchain
+    implementation_hint: "crypto_toolkit::encrypt::EncryptTool"
+
+  # Tool 2: Generate Key Pair
+  - name: generate_keypair
+    display_name: "Key Pair Generation"
+    description: "Generate cryptographic key pairs (RSA, Ed25519, ECDSA)"
+    category: security
+    tags: [keys, rsa, ed25519, ecdsa]
+
+    subagent_name: crypto-toolkit
+    subagent_version: "0.4.1"
+
+    prompts:
+      - name: default
+        template_type: chat
+        system_message: |
+          You are a key management assistant.
+          Generate secure cryptographic key pairs for signing and encryption.
+        human_message_template: |
+          Generate {key_type} key pair
+          Key size: {key_size}
+          Save to: {output_path}
+        input_variables: [key_type, key_size, output_path]
+        partial_variables:
+          key_type: "Ed25519"
+          key_size: "2048"
+          output_path: "~/.crypto-toolkit/keys"
+        template: |
+          System: {system_message}
+          Human: {human_message_template}
+
+    parameters:
+      type: object
+      properties:
+        key_type:
+          type: string
+          enum: [RSA, Ed25519, ECDSA-P256, ECDSA-P384]
+          default: "Ed25519"
+          description: "Key pair type"
+        key_size:
+          type: integer
+          enum: [2048, 3072, 4096]
+          default: 2048
+          description: "Key size in bits (RSA only)"
+        password:
+          type: string
+          description: "Password to encrypt private key (optional)"
+        output_format:
+          type: string
+          enum: [PEM, DER]
+          default: "PEM"
+      required: [key_type]
+
+    structured_output:
+      name: KeyPairResult
+      json_schema:
+        type: object
+        properties:
+          public_key:
+            type: string
+            description: "Public key (PEM/DER)"
+          private_key:
+            type: string
+            description: "Private key (PEM/DER, encrypted if password provided)"
+          key_type:
+            type: string
+          fingerprint:
+            type: string
+            description: "Key fingerprint (SHA-256)"
+        required: [public_key, private_key, key_type, fingerprint]
+
+      pydantic_code: |
+        from pydantic import BaseModel
+
+        class KeyPairResult(BaseModel):
+            public_key: str
+            private_key: str
+            key_type: str
+            fingerprint: str
+
+      typescript_type: |
+        interface KeyPairResult {
+          public_key: string;
+          private_key: string;
+          key_type: string;
+          fingerprint: string;
+        }
+
+    activations:
+      - type: cli_subcommand
+        platform_id: cargo-rust
+        command: crypto-toolkit
+        subcommand: keygen
+
+      - type: cli_subcommand
+        platform_id: binary-linux
+        command: ./crypto-toolkit
+        subcommand: keygen
+
+    protocol: langchain
+
+  # Tool 3: Hash Data
+  - name: hash_data
+    display_name: "Cryptographic Hashing"
+    description: "Generate cryptographic hashes (SHA-256, SHA-3, BLAKE3)"
+    category: security
+    tags: [hashing, sha256, blake3]
+
+    subagent_name: crypto-toolkit
+    subagent_version: "0.4.1"
+
+    prompts:
+      - name: default
+        template_type: chat
+        system_message: |
+          Generate cryptographic hashes for data integrity verification.
+        human_message_template: |
+          Hash this data: {data}
+          Algorithm: {algorithm}
+        input_variables: [data, algorithm]
+        partial_variables:
+          algorithm: "SHA-256"
+        template: |
+          System: {system_message}
+          Human: {human_message_template}
+
+    parameters:
+      type: object
+      properties:
+        data:
+          type: string
+          description: "Data to hash (or file path)"
+        algorithm:
+          type: string
+          enum: [SHA-256, SHA-512, SHA3-256, BLAKE3]
+          default: "SHA-256"
+        output_format:
+          type: string
+          enum: [hex, base64]
+          default: "hex"
+      required: [data]
+
+    structured_output:
+      name: HashResult
+      json_schema:
+        type: object
+        properties:
+          hash:
+            type: string
+          algorithm:
+            type: string
+        required: [hash, algorithm]
+
+      typescript_type: |
+        interface HashResult {
+          hash: string;
+          algorithm: string;
+        }
+
+    activations:
+      - type: cli_subcommand
+        platform_id: cargo-rust
+        command: crypto-toolkit
+        subcommand: hash
+
+    protocol: langchain

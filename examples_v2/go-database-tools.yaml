@@ -1,0 +1,511 @@
+# SubAgent: Go-based database migration and management toolkit
+subagent:
+  name: db-migration-toolkit
+  version: 2.3.0
+  description: "Database migration and management tools built with Go"
+  author: dbtools-team
+  license: Apache-2.0
+  category: database
+  tags: [database, migrations, go, sql, postgres, mysql]
+  priority: 14
+
+  # Go module installation
+  installations:
+    - method: go
+      platform_id: go-cli
+      package_name: "github.com/dbtools/migration-toolkit"
+      package_version: "v2.3.0"
+      requires_install: true
+      install_command: "go install github.com/dbtools/migration-toolkit@v2.3.0"
+
+    - method: binary
+      platform_id: binary-linux-amd64
+      download_url: "https://github.com/dbtools/migration-toolkit/releases/download/v2.3.0/db-migrate-linux-amd64"
+      checksum: "sha256:1a2b3c4d..."
+      requires_install: true
+
+    - method: binary
+      platform_id: binary-darwin-arm64
+      download_url: "https://github.com/dbtools/migration-toolkit/releases/download/v2.3.0/db-migrate-darwin-arm64"
+      checksum: "sha256:5e6f7g8h..."
+      requires_install: true
+
+    - method: docker
+      platform_id: docker-cli
+      image: "dbtools/migration-toolkit:2.3.0"
+      requires_install: true
+
+  # Multiple activation methods
+  activations:
+    # Go CLI
+    - type: cli
+      platform_id: go-cli
+      command: migration-toolkit
+      env_vars:
+        DATABASE_URL:
+          required: true
+          description: "Database connection string"
+          example: "postgres://user:pass@localhost:5432/dbname"
+        MIGRATIONS_DIR:
+          required: false
+          description: "Directory containing migration files"
+          default: "./migrations"
+
+    # Binary CLI
+    - type: cli
+      platform_id: binary-linux-amd64
+      command: ./db-migrate
+      env_vars:
+        DATABASE_URL:
+          required: true
+          description: "Database connection string"
+
+    - type: cli
+      platform_id: binary-darwin-arm64
+      command: ./db-migrate
+      env_vars:
+        DATABASE_URL:
+          required: true
+
+    # Docker CLI
+    - type: cli
+      platform_id: docker-cli
+      command: docker
+      args: ["run", "--rm", "-v", "${PWD}/migrations:/migrations", "dbtools/migration-toolkit:2.3.0"]
+      env_vars:
+        DATABASE_URL:
+          required: true
+
+  dependencies:
+    - dep_type: database
+      name: postgresql
+      required: false
+      description: "PostgreSQL database (if using PostgreSQL)"
+      min_version: "10.0"
+
+    - dep_type: database
+      name: mysql
+      required: false
+      description: "MySQL database (if using MySQL)"
+      min_version: "5.7"
+
+# Tools
+tools:
+  # Tool 1: Run Migrations
+  - name: migrate_up
+    display_name: "Run Database Migrations"
+    description: "Apply pending database migrations"
+    category: database
+    tags: [migrations, schema, upgrade, sql]
+
+    subagent_name: db-migration-toolkit
+    subagent_version: "2.3.0"
+
+    prompts:
+      - name: default
+        description: "Standard migration prompt"
+        template_type: chat
+        system_message: |
+          You are a database migration assistant.
+          Use the migrate_up tool to apply pending schema migrations.
+          Always backup the database before running migrations in production.
+        human_message_template: |
+          Run migrations for database: {database_url}
+          Migrations directory: {migrations_dir}
+          Steps to apply: {steps}
+        input_variables: [database_url, migrations_dir, steps]
+        partial_variables:
+          migrations_dir: "./migrations"
+          steps: "all"
+        template: |
+          System: {system_message}
+          Human: {human_message_template}
+
+      - name: production
+        description: "Production migration with safety checks"
+        template_type: chat
+        system_message: |
+          PRODUCTION MIGRATION MODE
+          1. Verify backup exists
+          2. Review migrations to apply
+          3. Apply migrations with transaction rollback on error
+          4. Verify schema integrity
+        human_message_template: |
+          Apply migrations to PRODUCTION database: {database_url}
+          Require backup confirmation: {require_backup}
+        input_variables: [database_url, require_backup]
+        partial_variables:
+          require_backup: "true"
+        template: |
+          System: {system_message}
+          Human: {human_message_template}
+
+    parameters:
+      type: object
+      properties:
+        database_url:
+          type: string
+          description: "Database connection string"
+        migrations_dir:
+          type: string
+          description: "Path to migrations directory"
+          default: "./migrations"
+        steps:
+          type: integer
+          description: "Number of migrations to apply (0 = all pending)"
+          default: 0
+          minimum: 0
+        dry_run:
+          type: boolean
+          description: "Simulate without applying changes"
+          default: false
+        force:
+          type: boolean
+          description: "Force migration even if version conflicts"
+          default: false
+      required: [database_url]
+
+    structured_output:
+      name: MigrationResult
+      description: "Migration execution result"
+
+      json_schema:
+        type: object
+        properties:
+          success:
+            type: boolean
+          applied_migrations:
+            type: array
+            items:
+              type: object
+              properties:
+                version:
+                  type: string
+                name:
+                  type: string
+                applied_at:
+                  type: string
+                  format: date-time
+                duration_ms:
+                  type: integer
+          current_version:
+            type: string
+          errors:
+            type: array
+            items:
+              type: string
+        required: [success, applied_migrations, current_version]
+
+      pydantic_code: |
+        from pydantic import BaseModel
+        from typing import List, Optional
+        from datetime import datetime
+
+        class AppliedMigration(BaseModel):
+            version: str
+            name: str
+            applied_at: datetime
+            duration_ms: int
+
+        class MigrationResult(BaseModel):
+            success: bool
+            applied_migrations: List[AppliedMigration]
+            current_version: str
+            errors: Optional[List[str]] = None
+
+      typescript_type: |
+        interface AppliedMigration {
+          version: string;
+          name: string;
+          applied_at: string;
+          duration_ms: number;
+        }
+
+        interface MigrationResult {
+          success: boolean;
+          applied_migrations: AppliedMigration[];
+          current_version: string;
+          errors?: string[];
+        }
+
+      examples:
+        - success: true
+          applied_migrations:
+            - version: "001"
+              name: "create_users_table"
+              applied_at: "2025-11-15T10:30:00Z"
+              duration_ms: 234
+            - version: "002"
+              name: "add_email_index"
+              applied_at: "2025-11-15T10:30:01Z"
+              duration_ms: 145
+          current_version: "002"
+
+    activations:
+      - type: cli_subcommand
+        platform_id: go-cli
+        command: migration-toolkit
+        subcommand: up
+
+      - type: cli_subcommand
+        platform_id: binary-linux-amd64
+        command: ./db-migrate
+        subcommand: up
+
+      - type: cli_subcommand
+        platform_id: docker-cli
+        command: docker
+        args: ["run", "--rm", "-v", "${PWD}/migrations:/migrations"]
+        subcommand: up
+
+    protocol: langchain
+    implementation_hint: "github.com/dbtools/migration-toolkit/migrate.Up"
+
+  # Tool 2: Rollback Migrations
+  - name: migrate_down
+    display_name: "Rollback Database Migrations"
+    description: "Rollback applied database migrations"
+    category: database
+    tags: [migrations, rollback, revert, sql]
+
+    subagent_name: db-migration-toolkit
+    subagent_version: "2.3.0"
+
+    prompts:
+      - name: default
+        template_type: chat
+        system_message: |
+          You are a database migration assistant.
+          Use migrate_down to rollback migrations carefully.
+          ALWAYS backup before rollback.
+        human_message_template: |
+          Rollback migrations for: {database_url}
+          Steps to rollback: {steps}
+        input_variables: [database_url, steps]
+        partial_variables:
+          steps: "1"
+        template: |
+          System: {system_message}
+          Human: {human_message_template}
+
+    parameters:
+      type: object
+      properties:
+        database_url:
+          type: string
+        steps:
+          type: integer
+          description: "Number of migrations to rollback"
+          default: 1
+          minimum: 1
+        dry_run:
+          type: boolean
+          default: false
+      required: [database_url]
+
+    structured_output:
+      name: RollbackResult
+      json_schema:
+        type: object
+        properties:
+          success:
+            type: boolean
+          rolled_back_migrations:
+            type: array
+            items:
+              type: object
+              properties:
+                version:
+                  type: string
+                name:
+                  type: string
+          current_version:
+            type: string
+        required: [success, rolled_back_migrations, current_version]
+
+      typescript_type: |
+        interface RollbackResult {
+          success: boolean;
+          rolled_back_migrations: Array<{
+            version: string;
+            name: string;
+          }>;
+          current_version: string;
+        }
+
+    activations:
+      - type: cli_subcommand
+        platform_id: go-cli
+        command: migration-toolkit
+        subcommand: down
+
+    protocol: langchain
+
+  # Tool 3: Generate Migration
+  - name: create_migration
+    display_name: "Create New Migration"
+    description: "Generate a new migration file with timestamp"
+    category: database
+    tags: [migrations, create, generate, scaffold]
+
+    subagent_name: db-migration-toolkit
+    subagent_version: "2.3.0"
+
+    prompts:
+      - name: default
+        template_type: chat
+        system_message: |
+          Generate a new migration file.
+          Follow naming conventions and include both up and down migrations.
+        human_message_template: |
+          Create migration: {name}
+          Migrations directory: {migrations_dir}
+        input_variables: [name, migrations_dir]
+        partial_variables:
+          migrations_dir: "./migrations"
+        template: |
+          System: {system_message}
+          Human: {human_message_template}
+
+    parameters:
+      type: object
+      properties:
+        name:
+          type: string
+          description: "Migration name (snake_case)"
+        migrations_dir:
+          type: string
+          default: "./migrations"
+        format:
+          type: string
+          enum: [sql, go]
+          default: "sql"
+          description: "Migration file format"
+      required: [name]
+
+    structured_output:
+      name: CreateMigrationResult
+      json_schema:
+        type: object
+        properties:
+          created_files:
+            type: array
+            items:
+              type: string
+          version:
+            type: string
+        required: [created_files, version]
+
+      typescript_type: |
+        interface CreateMigrationResult {
+          created_files: string[];
+          version: string;
+        }
+
+    activations:
+      - type: cli_subcommand
+        platform_id: go-cli
+        command: migration-toolkit
+        subcommand: create
+
+    protocol: langchain
+
+  # Tool 4: Migration Status
+  - name: migration_status
+    display_name: "Check Migration Status"
+    description: "Check which migrations have been applied"
+    category: database
+    tags: [migrations, status, version, audit]
+
+    subagent_name: db-migration-toolkit
+    subagent_version: "2.3.0"
+
+    prompts:
+      - name: default
+        template_type: chat
+        system_message: |
+          Check the current state of database migrations.
+        human_message_template: |
+          Check migration status for: {database_url}
+        input_variables: [database_url]
+        template: |
+          System: {system_message}
+          Human: {human_message_template}
+
+    parameters:
+      type: object
+      properties:
+        database_url:
+          type: string
+      required: [database_url]
+
+    structured_output:
+      name: MigrationStatus
+      json_schema:
+        type: object
+        properties:
+          current_version:
+            type: string
+          pending_migrations:
+            type: array
+            items:
+              type: object
+              properties:
+                version:
+                  type: string
+                name:
+                  type: string
+          applied_migrations:
+            type: array
+            items:
+              type: object
+              properties:
+                version:
+                  type: string
+                name:
+                  type: string
+                applied_at:
+                  type: string
+                  format: date-time
+        required: [current_version, pending_migrations, applied_migrations]
+
+      pydantic_code: |
+        from pydantic import BaseModel
+        from typing import List
+        from datetime import datetime
+
+        class Migration(BaseModel):
+            version: str
+            name: str
+
+        class AppliedMigrationInfo(Migration):
+            applied_at: datetime
+
+        class MigrationStatus(BaseModel):
+            current_version: str
+            pending_migrations: List[Migration]
+            applied_migrations: List[AppliedMigrationInfo]
+
+      typescript_type: |
+        interface Migration {
+          version: string;
+          name: string;
+        }
+
+        interface AppliedMigrationInfo extends Migration {
+          applied_at: string;
+        }
+
+        interface MigrationStatus {
+          current_version: string;
+          pending_migrations: Migration[];
+          applied_migrations: AppliedMigrationInfo[];
+        }
+
+    activations:
+      - type: cli_subcommand
+        platform_id: go-cli
+        command: migration-toolkit
+        subcommand: status
+
+    protocol: langchain

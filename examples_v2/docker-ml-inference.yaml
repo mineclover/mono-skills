@@ -1,0 +1,297 @@
+# SubAgent: Docker-based ML inference service
+subagent:
+  name: ml-inference-service
+  version: 1.5.2
+  description: "Machine learning inference service with model zoo"
+  author: ml-ops-team
+  license: MIT
+  category: machine-learning
+  tags: [ml, inference, docker, models]
+  priority: 20
+
+  # Docker installation only
+  installations:
+    - method: docker
+      platform_id: docker-http
+      image: mlops/inference-service:1.5.2
+      requires_install: true
+      docker_config:
+        ports:
+          - "8080:8080"
+        volumes:
+          - "./models:/models"
+        environment:
+          - "MODEL_CACHE_DIR=/models"
+
+  # HTTP server activation
+  activations:
+    - type: http_server
+      platform_id: docker-http
+      host: "0.0.0.0"
+      port: 8080
+      health_check_endpoint: /health
+      env_vars:
+        HUGGINGFACE_TOKEN:
+          required: false
+          description: "HuggingFace token for downloading models"
+        MODEL_CACHE_DIR:
+          required: false
+          default: "/models"
+          description: "Directory for model cache"
+        MAX_BATCH_SIZE:
+          required: false
+          default: "32"
+          description: "Maximum batch size for inference"
+
+  dependencies:
+    - dep_type: hardware
+      name: gpu
+      required: false
+      description: "NVIDIA GPU for accelerated inference (optional)"
+
+# Tools
+tools:
+  # Tool 1: Text Classification
+  - name: classify_text
+    display_name: "Text Classification"
+    description: "Classify text using fine-tuned transformer models"
+    category: machine-learning
+    tags: [nlp, classification, transformers]
+
+    subagent_name: ml-inference-service
+    subagent_version: "1.5.2"
+
+    prompts:
+      - name: default
+        description: "Standard classification prompt"
+        template_type: chat
+        system_message: |
+          You are a text classification assistant.
+          Use the classify_text tool to categorize text content.
+          Provide confidence scores and explain the classification.
+        human_message_template: |
+          Classify this text: {text}
+          Model: {model_name}
+          Categories: {categories}
+        input_variables: [text, model_name, categories]
+        partial_variables:
+          model_name: "distilbert-base-uncased"
+          categories: "auto-detect"
+        template: |
+          System: {system_message}
+          Human: {human_message_template}
+
+      - name: sentiment
+        description: "Sentiment analysis focused"
+        template_type: chat
+        system_message: |
+          Perform sentiment analysis on the provided text.
+          Return positive, negative, or neutral classification.
+        human_message_template: |
+          Analyze sentiment: {text}
+        input_variables: [text]
+        template: |
+          System: {system_message}
+          Human: {human_message_template}
+
+    parameters:
+      type: object
+      properties:
+        text:
+          type: string
+          description: "Text to classify"
+        model_name:
+          type: string
+          description: "Model name from HuggingFace"
+          default: "distilbert-base-uncased"
+        categories:
+          type: array
+          description: "List of categories (optional, auto-detect if not provided)"
+          items:
+            type: string
+        batch_size:
+          type: integer
+          description: "Batch size for processing"
+          default: 16
+          minimum: 1
+          maximum: 128
+      required: [text]
+
+    structured_output:
+      name: ClassificationResult
+      description: "Classification result with confidence scores"
+
+      json_schema:
+        type: object
+        properties:
+          predicted_class:
+            type: string
+            description: "Predicted category"
+          confidence_score:
+            type: number
+            description: "Confidence score (0-1)"
+          all_scores:
+            type: object
+            description: "Scores for all categories"
+            additionalProperties:
+              type: number
+          model_used:
+            type: string
+        required: [predicted_class, confidence_score]
+
+      pydantic_code: |
+        from pydantic import BaseModel, Field
+        from typing import Dict
+
+        class ClassificationResult(BaseModel):
+            predicted_class: str
+            confidence_score: float = Field(..., ge=0.0, le=1.0)
+            all_scores: Dict[str, float]
+            model_used: str
+
+      typescript_type: |
+        interface ClassificationResult {
+          predicted_class: string;
+          confidence_score: number;
+          all_scores: Record<string, number>;
+          model_used: string;
+        }
+
+      examples:
+        - predicted_class: "positive"
+          confidence_score: 0.94
+          all_scores:
+            positive: 0.94
+            negative: 0.04
+            neutral: 0.02
+          model_used: "distilbert-base-uncased"
+
+    activations:
+      - type: http_endpoint
+        platform_id: docker-http
+        base_url: "http://localhost:8080"
+        endpoint: /api/classify
+        method: POST
+        headers:
+          Content-Type: application/json
+
+    protocol: openai
+    implementation_hint: "POST http://localhost:8080/api/classify"
+
+  # Tool 2: Named Entity Recognition
+  - name: extract_entities
+    display_name: "Named Entity Recognition"
+    description: "Extract named entities (people, organizations, locations) from text"
+    category: machine-learning
+    tags: [nlp, ner, extraction, entities]
+
+    subagent_name: ml-inference-service
+    subagent_version: "1.5.2"
+
+    prompts:
+      - name: default
+        template_type: chat
+        system_message: |
+          You are an entity extraction assistant.
+          Extract named entities from text including persons, organizations, locations, and dates.
+        human_message_template: |
+          Extract entities from: {text}
+          Entity types: {entity_types}
+        input_variables: [text, entity_types]
+        partial_variables:
+          entity_types: "PER, ORG, LOC, DATE"
+        template: |
+          System: {system_message}
+          Human: {human_message_template}
+
+    parameters:
+      type: object
+      properties:
+        text:
+          type: string
+          description: "Text to analyze"
+        entity_types:
+          type: array
+          description: "Entity types to extract"
+          items:
+            type: string
+            enum: [PER, ORG, LOC, DATE, MISC]
+          default: [PER, ORG, LOC]
+        model_name:
+          type: string
+          default: "bert-base-ner"
+      required: [text]
+
+    structured_output:
+      name: EntityExtractionResult
+      json_schema:
+        type: object
+        properties:
+          entities:
+            type: array
+            items:
+              type: object
+              properties:
+                text:
+                  type: string
+                type:
+                  type: string
+                  enum: [PER, ORG, LOC, DATE, MISC]
+                start_pos:
+                  type: integer
+                end_pos:
+                  type: integer
+                confidence:
+                  type: number
+        required: [entities]
+
+      pydantic_code: |
+        from pydantic import BaseModel, Field
+        from typing import List, Literal
+
+        class Entity(BaseModel):
+            text: str
+            type: Literal["PER", "ORG", "LOC", "DATE", "MISC"]
+            start_pos: int
+            end_pos: int
+            confidence: float = Field(..., ge=0.0, le=1.0)
+
+        class EntityExtractionResult(BaseModel):
+            entities: List[Entity]
+
+      typescript_type: |
+        type EntityType = "PER" | "ORG" | "LOC" | "DATE" | "MISC";
+
+        interface Entity {
+          text: string;
+          type: EntityType;
+          start_pos: number;
+          end_pos: number;
+          confidence: number;
+        }
+
+        interface EntityExtractionResult {
+          entities: Entity[];
+        }
+
+      examples:
+        - entities:
+            - text: "OpenAI"
+              type: "ORG"
+              start_pos: 0
+              end_pos: 6
+              confidence: 0.98
+            - text: "San Francisco"
+              type: "LOC"
+              start_pos: 20
+              end_pos: 33
+              confidence: 0.95
+
+    activations:
+      - type: http_endpoint
+        platform_id: docker-http
+        base_url: "http://localhost:8080"
+        endpoint: /api/ner
+        method: POST
+
+    protocol: openai

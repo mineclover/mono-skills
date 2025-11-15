@@ -1,0 +1,549 @@
+# SubAgent: Remote Weather API (No installation needed)
+subagent:
+  name: weather-intelligence-api
+  version: 3.2.0
+  description: "Real-time weather data and forecasting via remote API"
+  author: weathertech-ai
+  license: Proprietary
+  category: weather
+  tags: [weather, forecast, real-time, api, remote]
+  priority: 12
+
+  # Remote API - NO INSTALLATION REQUIRED
+  installations:
+    - method: remote
+      platform_id: remote-sse
+      api_endpoint: "https://api.weathertech.ai/v3"
+      auth_method: bearer
+      requires_install: false  # Key: No installation needed!
+      api_docs_url: "https://docs.weathertech.ai/v3"
+
+    - method: remote
+      platform_id: remote-http
+      api_endpoint: "https://api.weathertech.ai/v3"
+      auth_method: bearer
+      requires_install: false
+      api_docs_url: "https://docs.weathertech.ai/v3"
+
+  # Remote activation methods
+  activations:
+    # SSE streaming for real-time updates
+    - type: sse
+      platform_id: remote-sse
+      url: "https://api.weathertech.ai/v3/stream"
+      reconnect: true
+      env_vars:
+        WEATHERTECH_API_KEY:
+          required: true
+          description: "WeatherTech AI API key"
+          signup_url: "https://weathertech.ai/signup"
+
+    # HTTP REST API
+    - type: http_server
+      platform_id: remote-http
+      host: "api.weathertech.ai"
+      port: 443
+      protocol: https
+      health_check_endpoint: /health
+      env_vars:
+        WEATHERTECH_API_KEY:
+          required: true
+          description: "WeatherTech AI API key"
+          signup_url: "https://weathertech.ai/signup"
+
+  dependencies:
+    - dep_type: api
+      name: weathertech-ai
+      required: true
+      description: "WeatherTech AI API access with valid API key"
+      signup_url: "https://weathertech.ai/signup"
+
+# Tools
+tools:
+  # Tool 1: Current Weather
+  - name: get_current_weather
+    display_name: "Current Weather"
+    description: "Get real-time current weather conditions for any location"
+    category: weather
+    tags: [current, real-time, conditions, temperature]
+
+    subagent_name: weather-intelligence-api
+    subagent_version: "3.2.0"
+
+    prompts:
+      - name: default
+        description: "Standard weather query prompt"
+        template_type: chat
+        system_message: |
+          You are a weather information assistant.
+          Use the get_current_weather tool to fetch real-time weather data.
+          Provide clear, user-friendly weather information with relevant details.
+        human_message_template: |
+          Get current weather for: {location}
+          Units: {units}
+          Include details: {include_details}
+        input_variables: [location, units, include_details]
+        partial_variables:
+          units: "metric"
+          include_details: "temperature, humidity, wind, pressure"
+        template: |
+          System: {system_message}
+          Human: {human_message_template}
+
+      - name: conversational
+        description: "Conversational weather query"
+        template_type: chat
+        system_message: |
+          You're a friendly weather assistant.
+          Provide weather info in a conversational, easy-to-understand way.
+        human_message_template: |
+          What's the weather like in {location}?
+        input_variables: [location]
+        template: |
+          System: {system_message}
+          Human: {human_message_template}
+
+    parameters:
+      type: object
+      properties:
+        location:
+          type: string
+          description: "Location (city name, coordinates, or zip code)"
+        units:
+          type: string
+          enum: [metric, imperial, standard]
+          default: "metric"
+          description: "Unit system for temperature and wind speed"
+        language:
+          type: string
+          default: "en"
+          description: "Language for weather descriptions"
+        include_air_quality:
+          type: boolean
+          default: false
+          description: "Include air quality index"
+      required: [location]
+
+    structured_output:
+      name: CurrentWeather
+      description: "Current weather conditions"
+
+      json_schema:
+        type: object
+        properties:
+          location:
+            type: object
+            properties:
+              name:
+                type: string
+              country:
+                type: string
+              coordinates:
+                type: object
+                properties:
+                  lat:
+                    type: number
+                  lon:
+                    type: number
+          current:
+            type: object
+            properties:
+              temperature:
+                type: number
+                description: "Temperature in selected units"
+              feels_like:
+                type: number
+              humidity:
+                type: integer
+                description: "Humidity percentage"
+              pressure:
+                type: integer
+                description: "Atmospheric pressure (hPa)"
+              wind_speed:
+                type: number
+              wind_direction:
+                type: integer
+                description: "Wind direction in degrees"
+              condition:
+                type: string
+                description: "Weather condition description"
+              icon:
+                type: string
+                description: "Weather icon code"
+          air_quality:
+            type: object
+            properties:
+              aqi:
+                type: integer
+                description: "Air Quality Index (1-5)"
+              components:
+                type: object
+          timestamp:
+            type: string
+            format: date-time
+        required: [location, current, timestamp]
+
+      pydantic_code: |
+        from pydantic import BaseModel, Field
+        from typing import Optional
+        from datetime import datetime
+
+        class Coordinates(BaseModel):
+            lat: float
+            lon: float
+
+        class Location(BaseModel):
+            name: str
+            country: str
+            coordinates: Coordinates
+
+        class CurrentConditions(BaseModel):
+            temperature: float
+            feels_like: float
+            humidity: int = Field(..., ge=0, le=100)
+            pressure: int
+            wind_speed: float
+            wind_direction: int = Field(..., ge=0, le=360)
+            condition: str
+            icon: str
+
+        class AirQuality(BaseModel):
+            aqi: int = Field(..., ge=1, le=5)
+            components: dict
+
+        class CurrentWeather(BaseModel):
+            location: Location
+            current: CurrentConditions
+            air_quality: Optional[AirQuality] = None
+            timestamp: datetime
+
+      typescript_type: |
+        interface Coordinates {
+          lat: number;
+          lon: number;
+        }
+
+        interface Location {
+          name: string;
+          country: string;
+          coordinates: Coordinates;
+        }
+
+        interface CurrentConditions {
+          temperature: number;
+          feels_like: number;
+          humidity: number;
+          pressure: number;
+          wind_speed: number;
+          wind_direction: number;
+          condition: string;
+          icon: string;
+        }
+
+        interface AirQuality {
+          aqi: number;
+          components: Record<string, any>;
+        }
+
+        interface CurrentWeather {
+          location: Location;
+          current: CurrentConditions;
+          air_quality?: AirQuality;
+          timestamp: string;
+        }
+
+      examples:
+        - location:
+            name: "Seoul"
+            country: "KR"
+            coordinates:
+              lat: 37.5665
+              lon: 126.9780
+          current:
+            temperature: 15.2
+            feels_like: 13.8
+            humidity: 65
+            pressure: 1013
+            wind_speed: 4.5
+            wind_direction: 270
+            condition: "Partly cloudy"
+            icon: "02d"
+          timestamp: "2025-11-15T10:30:00Z"
+
+    # Tool-specific activations
+    activations:
+      # SSE streaming endpoint
+      - type: sse
+        platform_id: remote-sse
+        url: "https://api.weathertech.ai/v3/stream"
+        event_type: current_weather
+        headers:
+          Authorization: "Bearer ${WEATHERTECH_API_KEY}"
+
+      # HTTP REST endpoint
+      - type: http_endpoint
+        platform_id: remote-http
+        base_url: "https://api.weathertech.ai/v3"
+        endpoint: /weather/current
+        method: GET
+        headers:
+          Authorization: "Bearer ${WEATHERTECH_API_KEY}"
+          Content-Type: application/json
+
+    protocol: openai
+    implementation_hint: "GET https://api.weathertech.ai/v3/weather/current"
+
+  # Tool 2: Weather Forecast
+  - name: get_forecast
+    display_name: "Weather Forecast"
+    description: "Get weather forecast for upcoming days (1-16 days)"
+    category: weather
+    tags: [forecast, prediction, future, planning]
+
+    subagent_name: weather-intelligence-api
+    subagent_version: "3.2.0"
+
+    prompts:
+      - name: default
+        template_type: chat
+        system_message: |
+          You are a weather forecasting assistant.
+          Provide accurate multi-day weather forecasts with helpful context.
+        human_message_template: |
+          Get {days}-day forecast for: {location}
+          Units: {units}
+        input_variables: [location, days, units]
+        partial_variables:
+          days: "7"
+          units: "metric"
+        template: |
+          System: {system_message}
+          Human: {human_message_template}
+
+    parameters:
+      type: object
+      properties:
+        location:
+          type: string
+          description: "Location (city name, coordinates, or zip code)"
+        days:
+          type: integer
+          minimum: 1
+          maximum: 16
+          default: 7
+          description: "Number of days to forecast"
+        units:
+          type: string
+          enum: [metric, imperial, standard]
+          default: "metric"
+        hourly:
+          type: boolean
+          default: false
+          description: "Include hourly breakdown"
+      required: [location]
+
+    structured_output:
+      name: WeatherForecast
+      json_schema:
+        type: object
+        properties:
+          location:
+            type: object
+            properties:
+              name:
+                type: string
+              country:
+                type: string
+          daily_forecast:
+            type: array
+            items:
+              type: object
+              properties:
+                date:
+                  type: string
+                  format: date
+                temp_max:
+                  type: number
+                temp_min:
+                  type: number
+                condition:
+                  type: string
+                precipitation_probability:
+                  type: number
+                  description: "Probability of precipitation (0-1)"
+                wind_speed:
+                  type: number
+          hourly_forecast:
+            type: array
+            items:
+              type: object
+              properties:
+                timestamp:
+                  type: string
+                  format: date-time
+                temperature:
+                  type: number
+                condition:
+                  type: string
+        required: [location, daily_forecast]
+
+      pydantic_code: |
+        from pydantic import BaseModel, Field
+        from typing import List, Optional
+        from datetime import date, datetime
+
+        class DailyForecast(BaseModel):
+            date: date
+            temp_max: float
+            temp_min: float
+            condition: str
+            precipitation_probability: float = Field(..., ge=0.0, le=1.0)
+            wind_speed: float
+
+        class HourlyForecast(BaseModel):
+            timestamp: datetime
+            temperature: float
+            condition: str
+
+        class WeatherForecast(BaseModel):
+            location: dict
+            daily_forecast: List[DailyForecast]
+            hourly_forecast: Optional[List[HourlyForecast]] = None
+
+      typescript_type: |
+        interface DailyForecast {
+          date: string;
+          temp_max: number;
+          temp_min: number;
+          condition: string;
+          precipitation_probability: number;
+          wind_speed: number;
+        }
+
+        interface HourlyForecast {
+          timestamp: string;
+          temperature: number;
+          condition: string;
+        }
+
+        interface WeatherForecast {
+          location: {
+            name: string;
+            country: string;
+          };
+          daily_forecast: DailyForecast[];
+          hourly_forecast?: HourlyForecast[];
+        }
+
+    activations:
+      - type: http_endpoint
+        platform_id: remote-http
+        base_url: "https://api.weathertech.ai/v3"
+        endpoint: /weather/forecast
+        method: GET
+        headers:
+          Authorization: "Bearer ${WEATHERTECH_API_KEY}"
+
+      - type: sse
+        platform_id: remote-sse
+        url: "https://api.weathertech.ai/v3/stream"
+        event_type: forecast
+
+    protocol: openai
+
+  # Tool 3: Weather Alerts
+  - name: get_weather_alerts
+    display_name: "Weather Alerts"
+    description: "Get active weather alerts and warnings for a location"
+    category: weather
+    tags: [alerts, warnings, severe-weather, safety]
+
+    subagent_name: weather-intelligence-api
+    subagent_version: "3.2.0"
+
+    prompts:
+      - name: default
+        template_type: chat
+        system_message: |
+          You are a weather safety assistant.
+          Provide important weather alerts and safety recommendations.
+        human_message_template: |
+          Check weather alerts for: {location}
+          Severity filter: {min_severity}
+        input_variables: [location, min_severity]
+        partial_variables:
+          min_severity: "moderate"
+        template: |
+          System: {system_message}
+          Human: {human_message_template}
+
+    parameters:
+      type: object
+      properties:
+        location:
+          type: string
+        min_severity:
+          type: string
+          enum: [minor, moderate, severe, extreme]
+          default: "moderate"
+          description: "Minimum alert severity level"
+      required: [location]
+
+    structured_output:
+      name: WeatherAlerts
+      json_schema:
+        type: object
+        properties:
+          location:
+            type: string
+          alerts:
+            type: array
+            items:
+              type: object
+              properties:
+                event:
+                  type: string
+                severity:
+                  type: string
+                  enum: [minor, moderate, severe, extreme]
+                description:
+                  type: string
+                start_time:
+                  type: string
+                  format: date-time
+                end_time:
+                  type: string
+                  format: date-time
+          active_count:
+            type: integer
+        required: [location, alerts, active_count]
+
+      typescript_type: |
+        type AlertSeverity = "minor" | "moderate" | "severe" | "extreme";
+
+        interface Alert {
+          event: string;
+          severity: AlertSeverity;
+          description: string;
+          start_time: string;
+          end_time: string;
+        }
+
+        interface WeatherAlerts {
+          location: string;
+          alerts: Alert[];
+          active_count: number;
+        }
+
+    activations:
+      - type: http_endpoint
+        platform_id: remote-http
+        endpoint: /weather/alerts
+        method: GET
+
+      - type: sse
+        platform_id: remote-sse
+        url: "https://api.weathertech.ai/v3/stream"
+        event_type: alerts
+
+    protocol: openai

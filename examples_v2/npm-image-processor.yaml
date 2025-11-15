@@ -1,0 +1,238 @@
+# SubAgent: npm-based image processing toolkit
+subagent:
+  name: image-processor-toolkit
+  version: 2.1.0
+  description: "Image processing toolkit with AI-powered enhancements"
+  author: vision-tools-team
+  license: Apache-2.0
+  category: image-processing
+  tags: [images, ai, computer-vision, node]
+  priority: 18
+
+  # npm installation
+  installations:
+    - method: npm
+      platform_id: npm-node
+      package_name: "@vision-tools/image-processor"
+      package_version: "^2.1.0"
+      requires_install: true
+
+    - method: yarn
+      platform_id: yarn-node
+      package_name: "@vision-tools/image-processor"
+      package_version: "^2.1.0"
+      requires_install: true
+
+  # Node.js CLI activation
+  activations:
+    - type: cli
+      platform_id: npm-node
+      command: npx
+      args: ["image-processor"]
+      env_vars:
+        OPENAI_API_KEY:
+          required: true
+          description: "OpenAI API key for AI features"
+        IMAGE_CACHE_DIR:
+          required: false
+          description: "Directory for image cache"
+          default: "/tmp/image-cache"
+
+    - type: cli
+      platform_id: yarn-node
+      command: yarn
+      args: ["image-processor"]
+      env_vars:
+        OPENAI_API_KEY:
+          required: true
+
+  dependencies:
+    - dep_type: api
+      name: openai
+      required: true
+      description: "OpenAI API for AI-powered features"
+
+# Tools
+tools:
+  # Tool 1: Image Enhancement
+  - name: enhance_image
+    display_name: "AI Image Enhancement"
+    description: "Enhance image quality using AI upscaling and denoising"
+    category: image-processing
+    tags: [enhancement, ai, upscaling, denoising]
+
+    subagent_name: image-processor-toolkit
+    subagent_version: "2.1.0"
+
+    prompts:
+      - name: default
+        description: "Standard image enhancement prompt"
+        template_type: chat
+        system_message: |
+          You are an image enhancement assistant.
+          Use the enhance_image tool to improve image quality.
+          Explain the enhancements applied.
+        human_message_template: |
+          Enhance this image: {image_path}
+          Target resolution: {target_resolution}
+          Apply denoising: {denoise}
+        input_variables: [image_path, target_resolution, denoise]
+        partial_variables:
+          target_resolution: "2048x2048"
+          denoise: "true"
+        template: |
+          System: {system_message}
+          Human: {human_message_template}
+
+    parameters:
+      type: object
+      properties:
+        image_path:
+          type: string
+          description: "Path to input image"
+        target_resolution:
+          type: string
+          description: "Target resolution (e.g., '2048x2048')"
+          default: "2048x2048"
+        denoise:
+          type: boolean
+          description: "Apply denoising"
+          default: true
+        enhance_colors:
+          type: boolean
+          description: "Enhance color vibrancy"
+          default: true
+      required: [image_path]
+
+    structured_output:
+      name: EnhancementResult
+      description: "Image enhancement result"
+
+      json_schema:
+        type: object
+        properties:
+          output_path:
+            type: string
+            description: "Path to enhanced image"
+          original_resolution:
+            type: string
+          final_resolution:
+            type: string
+          enhancements_applied:
+            type: array
+            items:
+              type: string
+          processing_time_ms:
+            type: number
+        required: [output_path, final_resolution]
+
+      pydantic_code: |
+        from pydantic import BaseModel, FilePath
+        from typing import List
+
+        class EnhancementResult(BaseModel):
+            output_path: str
+            original_resolution: str
+            final_resolution: str
+            enhancements_applied: List[str]
+            processing_time_ms: float
+
+      typescript_type: |
+        interface EnhancementResult {
+          output_path: string;
+          original_resolution: string;
+          final_resolution: string;
+          enhancements_applied: string[];
+          processing_time_ms: number;
+        }
+
+      examples:
+        - output_path: "/tmp/enhanced_image.png"
+          original_resolution: "1024x768"
+          final_resolution: "2048x1536"
+          enhancements_applied: ["upscaling", "denoising", "color_enhancement"]
+          processing_time_ms: 2340.5
+
+    activations:
+      - type: cli_subcommand
+        platform_id: npm-node
+        command: npx
+        args: ["image-processor"]
+        subcommand: enhance
+
+    protocol: langchain
+    implementation_hint: "@vision-tools/image-processor/tools/enhance"
+
+  # Tool 2: Background Removal
+  - name: remove_background
+    display_name: "AI Background Removal"
+    description: "Remove image background using AI segmentation"
+    category: image-processing
+    tags: [background-removal, segmentation, ai]
+
+    subagent_name: image-processor-toolkit
+    subagent_version: "2.1.0"
+
+    prompts:
+      - name: default
+        template_type: chat
+        system_message: |
+          You are a background removal assistant.
+          Use AI to accurately segment and remove backgrounds.
+        human_message_template: |
+          Remove background from: {image_path}
+          Output format: {output_format}
+        input_variables: [image_path, output_format]
+        partial_variables:
+          output_format: "png"
+        template: |
+          System: {system_message}
+          Human: {human_message_template}
+
+    parameters:
+      type: object
+      properties:
+        image_path:
+          type: string
+          description: "Path to input image"
+        output_format:
+          type: string
+          enum: [png, webp]
+          default: "png"
+          description: "Output format (must support transparency)"
+        edge_refinement:
+          type: boolean
+          default: true
+          description: "Refine edges for smoother cutout"
+      required: [image_path]
+
+    structured_output:
+      name: BackgroundRemovalResult
+      json_schema:
+        type: object
+        properties:
+          output_path:
+            type: string
+          mask_path:
+            type: string
+            description: "Path to segmentation mask"
+          confidence_score:
+            type: number
+            description: "Segmentation confidence (0-1)"
+        required: [output_path]
+
+      typescript_type: |
+        interface BackgroundRemovalResult {
+          output_path: string;
+          mask_path?: string;
+          confidence_score: number;
+        }
+
+    activations:
+      - type: cli_subcommand
+        platform_id: npm-node
+        command: npx
+        args: ["image-processor"]
+        subcommand: remove-bg
+
+    protocol: langchain

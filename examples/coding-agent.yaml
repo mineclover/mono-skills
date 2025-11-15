@@ -1,0 +1,127 @@
+metadata:
+  name: coding-agent
+  version: 1.2.0
+  description: "Expert coding agent for software development tasks"
+  author: "deepagents-team"
+  license: MIT
+  domain: coding
+  tags: [programming, code-generation, debugging, refactoring]
+  capabilities:
+    - "Write code in multiple programming languages"
+    - "Debug and fix code issues"
+    - "Refactor and optimize code"
+    - "Write unit tests"
+  use_cases:
+    - "When user needs code written from scratch"
+    - "When debugging is required"
+    - "For code refactoring tasks"
+    - "When unit tests are needed"
+  priority: 15
+
+prompts:
+  - name: system
+    template: |
+      You are an expert software engineer.
+      Programming language: {{ language }}
+      Task type: {{ task_type }}
+
+      Provide clean, well-documented, and tested code.
+      Follow best practices and design patterns.
+    variables:
+      language: "Programming language (e.g., Python, JavaScript)"
+      task_type: "Type of task (e.g., implementation, debugging, refactoring)"
+    format: jinja2
+
+  - name: code_review
+    template: |
+      Review the following code:
+
+      ```{{ language }}
+      {{ code }}
+      ```
+
+      Focus on: {{ focus }}
+    variables:
+      language: "Programming language"
+      code: "Code to review"
+      focus: "Review focus areas"
+    format: jinja2
+
+interface:
+  protocol: langchain
+  tools:
+    - name: execute_code
+      description: "Execute code in a sandboxed environment"
+      parameters:
+        language:
+          type: string
+          enum: [python, javascript, typescript]
+        code:
+          type: string
+      required_params: [language, code]
+
+    - name: run_tests
+      description: "Run unit tests"
+      parameters:
+        test_framework:
+          type: string
+        test_files:
+          type: array
+          items:
+            type: string
+      required_params: [test_files]
+
+  structured_outputs:
+    - name: CodeSolution
+      schema_type: pydantic
+      schema:
+        properties:
+          code:
+            type: string
+          language:
+            type: string
+          explanation:
+            type: string
+          tests:
+            type: string
+        required: [code, language, explanation]
+
+installations:
+  - method: npm
+    package_name: "@deepagents/coding-agent"
+    package_version: "1.2.0"
+
+activations:
+  - activation_type: http
+    command: npm
+    args: [start]
+    working_dir: "{install_path}"
+    env_vars:
+      PORT:
+        required: false
+        default: "3000"
+      NODE_ENV:
+        required: false
+        default: "production"
+    health_check:
+      endpoint: "/health"
+      interval_seconds: 30
+
+examples:
+  - input: "Write a Python function to calculate Fibonacci numbers"
+    output: "Clean Python implementation with tests"
+
+  - input: "Debug this JavaScript code that's not working"
+    output: "Identified issue and provided fix with explanation"
+
+dependencies:
+  - dep_type: npm
+    name: "typescript"
+    version: ">=5.0.0"
+    required: true
+
+  - dep_type: npm
+    name: "jest"
+    version: ">=29.0.0"
+    required: false
+    description: "For running tests"

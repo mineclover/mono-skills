@@ -1,0 +1,146 @@
+metadata:
+  name: research-agent
+  version: 1.0.0
+  description: "Deep research agent with web search and citation management"
+  author: "deepagents-community"
+  license: MIT
+  domain: research
+  tags: [web-search, academic-research, citation]
+  capabilities:
+    - "Conduct deep web research using Tavily API"
+    - "Search academic databases"
+    - "Manage citations and references"
+  use_cases:
+    - "When user requests in-depth research"
+    - "When academic citations are needed"
+    - "For comprehensive literature reviews"
+  priority: 10
+
+prompts:
+  - name: system
+    template: |
+      You are a dedicated research agent.
+      Your task: {{ task }}
+      Maximum sources: {{ max_sources }}
+
+      Please conduct thorough research and provide:
+      1. A comprehensive summary
+      2. Key findings
+      3. Citations for all sources used
+    variables:
+      task: "The research task description"
+      max_sources: "Maximum number of sources to use"
+    format: jinja2
+    description: "System prompt for the research agent"
+
+  - name: user_template
+    template: |
+      Research the following topic: {{ topic }}
+      Focus areas: {{ focus_areas }}
+    variables:
+      topic: "Topic to research"
+      focus_areas: "Specific areas to focus on"
+    format: jinja2
+
+interface:
+  protocol: langchain
+  tools:
+    - name: web_search
+      description: "Search the web using Tavily"
+      parameters:
+        query:
+          type: string
+          description: "Search query"
+        max_results:
+          type: integer
+          description: "Maximum number of results"
+          default: 10
+      required_params: [query]
+
+    - name: academic_search
+      description: "Search academic databases"
+      parameters:
+        query:
+          type: string
+        year_from:
+          type: integer
+        year_to:
+          type: integer
+      required_params: [query]
+
+  structured_outputs:
+    - name: ResearchReport
+      schema_type: pydantic
+      schema:
+        properties:
+          title:
+            type: string
+          summary:
+            type: string
+          key_findings:
+            type: array
+            items:
+              type: string
+          citations:
+            type: array
+            items:
+              type: object
+              properties:
+                title:
+                  type: string
+                authors:
+                  type: array
+                  items:
+                    type: string
+                year:
+                  type: integer
+                url:
+                  type: string
+        required: [title, summary, citations]
+      description: "Research report output schema"
+
+installations:
+  - method: git
+    repository: https://github.com/deepagents-community/research-agent
+    branch: main
+    post_install_commands:
+      - pip install -r requirements.txt
+
+activations:
+  - activation_type: stdio
+    command: python
+    args: [src/agent.py, --mode=subagent]
+    working_dir: "{install_path}"
+    env_vars:
+      TAVILY_API_KEY:
+        required: true
+        description: "Tavily API key for web search"
+      OPENAI_API_KEY:
+        required: true
+        description: "OpenAI API key for LLM"
+
+examples:
+  - input: "Research the environmental impact of renewable energy"
+    output: "15-page report with 30+ citations from academic sources and recent news"
+    description: "Environmental research example"
+
+  - input: "Investigate recent advances in quantum computing"
+    output: "Comprehensive report covering recent breakthroughs with citations"
+    description: "Technology research example"
+
+dependencies:
+  - dep_type: python
+    name: tavily
+    version: ">=1.1.0"
+    required: true
+    description: "Tavily API client for web search"
+
+  - dep_type: python
+    name: langchain
+    version: ">=0.1.0"
+    required: true
+
+  - dep_type: api
+    name: openai
+    required: true
+    description: "OpenAI API for LLM"

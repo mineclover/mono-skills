@@ -1,0 +1,102 @@
+metadata:
+  name: critique-agent
+  version: 0.9.0
+  description: "Critical analysis and review agent for evaluating outputs"
+  author: "deepagents-team"
+  license: MIT
+  domain: critique
+  tags: [review, analysis, quality-assurance, evaluation]
+  capabilities:
+    - "Provide critical analysis of text"
+    - "Evaluate code quality"
+    - "Review research reports"
+    - "Suggest improvements"
+  use_cases:
+    - "When output needs quality review"
+    - "For critical analysis of results"
+    - "To improve work through feedback"
+  priority: 5
+
+prompts:
+  - name: system
+    template: |
+      You are a critical reviewer and analyst.
+      Content type: {{ content_type }}
+      Review criteria: {{ criteria }}
+
+      Provide constructive criticism and specific suggestions for improvement.
+    variables:
+      content_type: "Type of content to review"
+      criteria: "Review criteria to focus on"
+    format: jinja2
+
+  - name: critique_template
+    template: |
+      Review the following {{ content_type }}:
+
+      {{ content }}
+
+      Provide:
+      1. Strengths
+      2. Weaknesses
+      3. Specific suggestions for improvement
+    variables:
+      content_type: "Type of content"
+      content: "Content to critique"
+    format: jinja2
+
+interface:
+  protocol: langchain
+  structured_outputs:
+    - name: CritiqueReport
+      schema_type: pydantic
+      schema:
+        properties:
+          overall_rating:
+            type: number
+            minimum: 0
+            maximum: 10
+          strengths:
+            type: array
+            items:
+              type: string
+          weaknesses:
+            type: array
+            items:
+              type: string
+          suggestions:
+            type: array
+            items:
+              type: object
+              properties:
+                issue:
+                  type: string
+                suggestion:
+                  type: string
+                priority:
+                  type: string
+                  enum: [high, medium, low]
+        required: [overall_rating, strengths, weaknesses, suggestions]
+
+installations:
+  - method: pip
+    package_name: deepagents-critique
+    package_version: "0.9.0"
+
+activations:
+  - activation_type: stdio
+    command: python
+    args: [-m, deepagents_critique]
+    env_vars:
+      OPENAI_API_KEY:
+        required: true
+
+examples:
+  - input: "Review this research report on climate change"
+    output: "Detailed critique with 5 strengths, 3 weaknesses, and 8 specific suggestions"
+
+dependencies:
+  - dep_type: python
+    name: langchain
+    version: ">=0.1.0"
+    required: true

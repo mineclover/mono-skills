@@ -1,0 +1,69 @@
+[project]
+name = "subagent-registry"
+version = "0.1.0"
+description = "SubAgent Registry & Search Engine - RAG-based search for subagent metadata, installation, and prompts"
+authors = [
+    {name = "DeepAgents Team", email = "team@deepagents.ai"}
+]
+requires-python = ">=3.10"
+readme = "README.md"
+license = {text = "MIT"}
+
+dependencies = [
+    "fastapi>=0.104.0",
+    "uvicorn[standard]>=0.24.0",
+    "sqlalchemy>=2.0.0",
+    "pydantic>=2.0.0",
+    "pydantic-settings>=2.0.0",
+    "qdrant-client>=1.7.0",
+    "langchain-core>=0.1.0",
+    "langchain-openai>=0.0.5",
+    "jinja2>=3.1.0",
+    "httpx>=0.25.0",
+    "typer>=0.9.0",
+    "pyyaml>=6.0",
+    "python-multipart>=0.0.6",
+    "alembic>=1.12.0",
+    "rich>=13.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.1.0",
+    "black>=23.0.0",
+    "ruff>=0.1.0",
+    "mypy>=1.7.0",
+    "httpx>=0.25.0",
+]
+
+[project.scripts]
+registry-server = "registry_engine.api.app:main"
+registry-cli = "registry_engine.cli.main:app"
+
+[build-system]
+requires = ["setuptools>=68.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["registry_engine"]
+
+[tool.black]
+line-length = 100
+target-version = ["py310"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+addopts = "-v --cov=registry_engine --cov-report=term-missing"
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true

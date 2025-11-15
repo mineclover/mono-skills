@@ -1,0 +1,322 @@
+# SubAgent: Package/Installation metadata
+subagent:
+  name: tavily-search-toolkit
+  version: 1.0.0
+  description: "Web search toolkit using Tavily API"
+  author: deepagents-team
+  license: MIT
+  category: search
+  tags: [web-search, tavily, real-time]
+  priority: 15
+
+  # Multiple installation methods
+  installations:
+    # Python
+    - method: pip
+      platform_id: pip-python
+      package_name: tavily-search-toolkit
+      package_version: ">=1.0.0"
+      requires_install: true
+
+    # Node.js
+    - method: npm
+      platform_id: npm-node
+      package_name: "@deepagents/tavily-toolkit"
+      package_version: "^1.0.0"
+      requires_install: true
+
+    # Docker
+    - method: docker
+      platform_id: docker-container
+      image: deepagents/tavily-toolkit:1.0.0
+      requires_install: true
+
+    # Remote API (no install needed)
+    - method: remote
+      platform_id: remote-api
+      api_endpoint: https://api.tavily.com/v1
+      auth_method: bearer
+      requires_install: false
+
+  # Activation methods (platform-specific)
+  activations:
+    # Python CLI
+    - type: cli
+      platform_id: pip-python
+      command: tavily-toolkit
+      env_vars:
+        TAVILY_API_KEY:
+          required: true
+          description: "Tavily API key"
+
+    # Node.js CLI
+    - type: cli
+      platform_id: npm-node
+      command: npx
+      args: [tavily-toolkit]
+      env_vars:
+        TAVILY_API_KEY:
+          required: true
+
+    # Docker HTTP Server
+    - type: http_server
+      platform_id: docker-container
+      host: "0.0.0.0"
+      port: 8080
+      health_check_endpoint: /health
+      env_vars:
+        TAVILY_API_KEY:
+          required: true
+
+    # Remote API (SSE)
+    - type: sse
+      platform_id: remote-api
+      url: https://api.tavily.com/v1/stream
+      env_vars:
+        TAVILY_API_KEY:
+          required: true
+
+  # Dependencies
+  dependencies:
+    - dep_type: api
+      name: tavily
+      required: true
+      description: "Tavily API access"
+
+# Tools: Individual functions provided by this package
+tools:
+  # Tool 1: Web Search
+  - name: web_search
+    display_name: "Web Search"
+    description: "Search the web for current information using Tavily API"
+    category: search
+    tags: [web, search, real-time, tavily]
+
+    subagent_name: tavily-search-toolkit
+    subagent_version: "1.0.0"
+
+    # Prompts for this tool
+    prompts:
+      - name: default
+        description: "Standard web search prompt"
+        template_type: chat
+        system_message: |
+          You are a web search assistant powered by Tavily.
+          Use the web_search tool to find current, accurate information.
+          Always cite sources and provide URLs.
+        human_message_template: |
+          Search query: {query}
+          Max results: {max_results}
+          {domains_instruction}
+        input_variables: [query, max_results, domains_instruction]
+        partial_variables:
+          domains_instruction: "Search all domains"
+        template: |
+          System: {system_message}
+          Human: {human_message_template}
+        examples:
+          - human: "Search for latest AI developments, max 5 results"
+            ai: "I'll search the web for the latest AI developments and provide you with the top 5 results with sources."
+
+      - name: academic
+        description: "Academic-focused search"
+        template_type: chat
+        system_message: |
+          Focus on academic and scholarly sources.
+          Prioritize peer-reviewed content and research papers.
+        human_message_template: |
+          Academic search: {query}
+        input_variables: [query]
+        template: |
+          System: {system_message}
+          Human: {human_message_template}
+
+    # Input parameters (JSON Schema)
+    parameters:
+      type: object
+      properties:
+        query:
+          type: string
+          description: "Search query"
+        max_results:
+          type: integer
+          description: "Maximum number of results"
+          default: 10
+          minimum: 1
+          maximum: 100
+        domains:
+          type: array
+          description: "Specific domains to search"
+          items:
+            type: string
+      required: [query]
+
+    # Structured output
+    structured_output:
+      name: SearchResults
+      description: "Web search results with sources"
+
+      json_schema:
+        type: object
+        properties:
+          results:
+            type: array
+            items:
+              type: object
+              properties:
+                title:
+                  type: string
+                url:
+                  type: string
+                  format: uri
+                snippet:
+                  type: string
+                score:
+                  type: number
+                published_date:
+                  type: string
+        required: [results]
+
+      pydantic_code: |
+        from pydantic import BaseModel, HttpUrl
+        from typing import List, Optional
+
+        class SearchResult(BaseModel):
+            title: str
+            url: HttpUrl
+            snippet: str
+            score: float
+            published_date: Optional[str] = None
+
+        class SearchResults(BaseModel):
+            results: List[SearchResult]
+
+      typescript_type: |
+        interface SearchResult {
+          title: string;
+          url: string;
+          snippet: string;
+          score: number;
+          published_date?: string;
+        }
+
+        interface SearchResults {
+          results: SearchResult[];
+        }
+
+      examples:
+        - results:
+            - title: "Latest AI Developments 2025"
+              url: "https://example.com/ai-news"
+              snippet: "Recent breakthroughs in AI..."
+              score: 0.95
+              published_date: "2025-11-15"
+
+    # Tool-specific activations (override SubAgent if needed)
+    activations:
+      # Python CLI subcommand
+      - type: cli_subcommand
+        platform_id: pip-python
+        command: tavily-toolkit
+        subcommand: search
+        args: []
+
+      # HTTP endpoint (when using Docker)
+      - type: http_endpoint
+        platform_id: docker-container
+        base_url: http://localhost:8080
+        endpoint: /api/search
+        method: POST
+
+      # SSE event (when using remote API)
+      - type: sse
+        platform_id: remote-api
+        url: https://api.tavily.com/v1/stream
+        event_type: search
+
+    protocol: langchain
+    implementation_hint: "tavily_toolkit.tools.WebSearchTool"
+
+  # Tool 2: News Search
+  - name: news_search
+    display_name: "News Search"
+    description: "Search for recent news articles"
+    category: search
+    tags: [news, current-events, journalism]
+
+    subagent_name: tavily-search-toolkit
+    subagent_version: "1.0.0"
+
+    prompts:
+      - name: default
+        template_type: chat
+        system_message: |
+          You are a news search assistant.
+          Focus on recent, credible news sources.
+        human_message_template: |
+          News search: {query}
+          Time range: {time_range}
+        input_variables: [query, time_range]
+        partial_variables:
+          time_range: "last 24 hours"
+        template: |
+          System: {system_message}
+          Human: {human_message_template}
+
+    parameters:
+      type: object
+      properties:
+        query:
+          type: string
+        time_range:
+          type: string
+          enum: [1h, 24h, 7d, 30d]
+          default: "24h"
+      required: [query]
+
+    structured_output:
+      name: NewsResults
+      json_schema:
+        type: object
+        properties:
+          articles:
+            type: array
+            items:
+              type: object
+              properties:
+                headline:
+                  type: string
+                source:
+                  type: string
+                url:
+                  type: string
+                published_at:
+                  type: string
+        required: [articles]
+
+      pydantic_code: |
+        from pydantic import BaseModel, HttpUrl
+        from typing import List
+        from datetime import datetime
+
+        class NewsArticle(BaseModel):
+            headline: str
+            source: str
+            url: HttpUrl
+            published_at: datetime
+
+        class NewsResults(BaseModel):
+            articles: List[NewsArticle]
+
+    activations:
+      - type: cli_subcommand
+        platform_id: pip-python
+        command: tavily-toolkit
+        subcommand: news
+
+      - type: http_endpoint
+        platform_id: docker-container
+        endpoint: /api/news
+        method: POST
+
+    protocol: langchain

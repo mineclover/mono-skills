@@ -1,0 +1,83 @@
+metadata:
+  name: web-scraper-agent
+  version: 1.0.5
+  description: "Web scraping and data extraction agent"
+  author: "deepagents-community"
+  license: MIT
+  domain: data-collection
+  tags: [web-scraping, data-extraction, automation, crawling]
+  capabilities:
+    - "Scrape web pages and extract data"
+    - "Handle dynamic JavaScript content"
+    - "Extract structured data from HTML"
+    - "Follow links and crawl websites"
+  use_cases:
+    - "When data needs to be extracted from websites"
+    - "For competitive analysis"
+    - "When building datasets from web sources"
+  priority: 7
+
+prompts:
+  - name: system
+    template: |
+      You are a web scraping specialist.
+      Target: {{ target_url }}
+      Data to extract: {{ data_type }}
+
+      Extract data efficiently while respecting robots.txt and rate limits.
+    variables:
+      target_url: "URL to scrape"
+      data_type: "Type of data to extract"
+    format: jinja2
+
+interface:
+  protocol: langchain
+  tools:
+    - name: scrape_page
+      description: "Scrape a web page"
+      parameters:
+        url:
+          type: string
+        selectors:
+          type: object
+      required_params: [url]
+
+    - name: extract_table
+      description: "Extract table data from HTML"
+      parameters:
+        url:
+          type: string
+        table_index:
+          type: integer
+      required_params: [url]
+
+installations:
+  - method: npm
+    package_name: "@deepagents/web-scraper"
+    package_version: "1.0.5"
+
+  - method: docker
+    image: deepagents/web-scraper:1.0.5
+
+activations:
+  - activation_type: http
+    command: npm
+    args: [start]
+    env_vars:
+      PORT:
+        default: "8002"
+
+examples:
+  - input: "Scrape product prices from this e-commerce site"
+    output: "Structured JSON with product names, prices, and availability"
+
+dependencies:
+  - dep_type: npm
+    name: puppeteer
+    version: ">=21.0.0"
+    required: true
+
+  - dep_type: npm
+    name: cheerio
+    version: ">=1.0.0"
+    required: true

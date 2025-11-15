@@ -1,0 +1,102 @@
+metadata:
+  name: security-audit-agent
+  version: 1.0.0
+  description: "Security vulnerability scanning and audit agent"
+  author: "deepagents-security"
+  license: Apache-2.0
+  domain: security
+  tags: [security, audit, vulnerability-scanning, compliance]
+  capabilities:
+    - "Scan code for security vulnerabilities"
+    - "Check for common security issues (OWASP Top 10)"
+    - "Audit dependencies for known CVEs"
+    - "Generate security reports"
+  use_cases:
+    - "When code security audit is needed"
+    - "For dependency vulnerability scanning"
+    - "When compliance checks are required"
+  priority: 13
+
+prompts:
+  - name: system
+    template: |
+      You are a security specialist.
+      Audit type: {{ audit_type }}
+      Target: {{ target }}
+
+      Check for:
+      - SQL injection vulnerabilities
+      - XSS vulnerabilities
+      - Authentication issues
+      - Dependency vulnerabilities
+      - Configuration issues
+    variables:
+      audit_type: "Type of security audit"
+      target: "Target to audit (code, dependencies, config)"
+    format: jinja2
+
+interface:
+  protocol: langchain
+  tools:
+    - name: scan_code
+      description: "Scan code for vulnerabilities"
+      parameters:
+        file_path:
+          type: string
+        language:
+          type: string
+      required_params: [file_path]
+
+    - name: check_dependencies
+      description: "Check dependencies for CVEs"
+      parameters:
+        manifest_file:
+          type: string
+      required_params: [manifest_file]
+
+  structured_outputs:
+    - name: SecurityReport
+      schema_type: pydantic
+      schema:
+        properties:
+          severity:
+            type: string
+            enum: [critical, high, medium, low, info]
+          vulnerabilities:
+            type: array
+            items:
+              type: object
+              properties:
+                type:
+                  type: string
+                severity:
+                  type: string
+                location:
+                  type: string
+                description:
+                  type: string
+                remediation:
+                  type: string
+          recommendations:
+            type: array
+            items:
+              type: string
+        required: [severity, vulnerabilities]
+
+installations:
+  - method: docker
+    image: deepagents/security-audit:1.0.0
+
+activations:
+  - activation_type: http
+    url: http://localhost:8004
+
+examples:
+  - input: "Audit this Node.js project for security issues"
+    output: "Report with 3 high-severity and 7 medium-severity findings"
+
+dependencies:
+  - dep_type: system
+    name: trivy
+    required: true
+    description: "Vulnerability scanner"

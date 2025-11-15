@@ -1,0 +1,72 @@
+metadata:
+  name: document-writer-agent
+  version: 1.5.0
+  description: "Professional document writing and formatting agent"
+  author: "deepagents-community"
+  license: Apache-2.0
+  domain: writing
+  tags: [documentation, writing, markdown, technical-writing]
+  capabilities:
+    - "Write technical documentation"
+    - "Create README files"
+    - "Generate API documentation"
+    - "Format documents in Markdown"
+  use_cases:
+    - "When documentation needs to be created"
+    - "For README generation"
+    - "When technical writing is required"
+  priority: 8
+
+prompts:
+  - name: system
+    template: |
+      You are a professional technical writer.
+      Document type: {{ doc_type }}
+      Target audience: {{ audience }}
+
+      Create clear, well-structured documentation.
+    variables:
+      doc_type: "Type of document"
+      audience: "Target audience level"
+    format: jinja2
+
+interface:
+  protocol: langchain
+  structured_outputs:
+    - name: Document
+      schema_type: pydantic
+      schema:
+        properties:
+          title:
+            type: string
+          content:
+            type: string
+          format:
+            type: string
+            enum: [markdown, rst, html]
+          sections:
+            type: array
+            items:
+              type: object
+        required: [title, content, format]
+
+installations:
+  - method: docker
+    image: deepagents/document-writer:1.5.0
+
+activations:
+  - activation_type: http
+    url: http://localhost:8001
+    health_check:
+      endpoint: /health
+      interval_seconds: 30
+
+examples:
+  - input: "Write a README for this Python project"
+    output: "Professional README with badges, installation, usage sections"
+
+dependencies:
+  - dep_type: system
+    name: pandoc
+    required: false
+    description: "For document format conversion"

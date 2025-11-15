@@ -1,0 +1,95 @@
+metadata:
+  name: sql-query-agent
+  version: 1.3.0
+  description: "SQL query generation and database analysis agent"
+  author: "deepagents-team"
+  license: MIT
+  domain: database
+  tags: [sql, database, query-generation, data-analysis]
+  capabilities:
+    - "Generate SQL queries from natural language"
+    - "Optimize database queries"
+    - "Analyze database schemas"
+    - "Explain query execution plans"
+  use_cases:
+    - "When SQL queries need to be generated"
+    - "For database schema analysis"
+    - "When query optimization is needed"
+  priority: 11
+
+prompts:
+  - name: system
+    template: |
+      You are a database expert.
+      Database type: {{ db_type }}
+      Schema: {{ schema_info }}
+
+      Generate efficient, secure SQL queries.
+      Always use parameterized queries to prevent SQL injection.
+    variables:
+      db_type: "Database type (PostgreSQL, MySQL, etc.)"
+      schema_info: "Database schema information"
+    format: jinja2
+
+interface:
+  protocol: langchain
+  tools:
+    - name: generate_query
+      description: "Generate SQL query from natural language"
+      parameters:
+        description:
+          type: string
+        db_type:
+          type: string
+      required_params: [description]
+
+    - name: optimize_query
+      description: "Optimize an existing SQL query"
+      parameters:
+        query:
+          type: string
+      required_params: [query]
+
+  structured_outputs:
+    - name: SQLQuery
+      schema_type: pydantic
+      schema:
+        properties:
+          query:
+            type: string
+          parameters:
+            type: object
+          explanation:
+            type: string
+        required: [query]
+
+installations:
+  - method: pip
+    package_name: deepagents-sql
+    package_version: "1.3.0"
+
+activations:
+  - activation_type: stdio
+    command: python
+    args: [-m, deepagents_sql]
+    env_vars:
+      OPENAI_API_KEY:
+        required: true
+      DB_CONNECTION_STRING:
+        required: false
+        description: "Database connection string (optional)"
+
+examples:
+  - input: "Find all users who registered in the last 30 days"
+    output: "SELECT * FROM users WHERE created_at >= NOW() - INTERVAL '30 days'"
+
+dependencies:
+  - dep_type: python
+    name: sqlalchemy
+    version: ">=2.0.0"
+    required: true
+
+  - dep_type: python
+    name: sqlparse
+    version: ">=0.4.0"
+    required: true

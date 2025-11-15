@@ -1,0 +1,77 @@
+metadata:
+  name: api-testing-agent
+  version: 1.4.0
+  description: "API testing and validation agent"
+  author: "deepagents-community"
+  license: MIT
+  domain: testing
+  tags: [api-testing, validation, qa, automation]
+  capabilities:
+    - "Test REST APIs automatically"
+    - "Validate API responses"
+    - "Generate API test cases"
+    - "Load testing and performance analysis"
+  use_cases:
+    - "When API endpoints need to be tested"
+    - "For automated API validation"
+    - "When load testing is required"
+  priority: 8
+
+prompts:
+  - name: system
+    template: |
+      You are an API testing specialist.
+      API endpoint: {{ endpoint }}
+      Test type: {{ test_type }}
+
+      Create comprehensive test cases covering:
+      - Happy path scenarios
+      - Edge cases
+      - Error handling
+      - Performance
+    variables:
+      endpoint: "API endpoint to test"
+      test_type: "Type of testing (functional, load, security)"
+    format: jinja2
+
+interface:
+  protocol: langchain
+  tools:
+    - name: test_endpoint
+      description: "Test an API endpoint"
+      parameters:
+        url:
+          type: string
+        method:
+          type: string
+          enum: [GET, POST, PUT, DELETE, PATCH]
+        headers:
+          type: object
+        body:
+          type: object
+      required_params: [url, method]
+
+installations:
+  - method: npm
+    package_name: "@deepagents/api-tester"
+    package_version: "1.4.0"
+
+activations:
+  - activation_type: http
+    command: npm
+    args: [start]
+
+examples:
+  - input: "Test this REST API with 100 concurrent requests"
+    output: "Test report with response times, success rates, and errors"
+
+dependencies:
+  - dep_type: npm
+    name: axios
+    version: ">=1.6.0"
+    required: true
+
+  - dep_type: npm
+    name: jest
+    version: ">=29.0.0"
+    required: true

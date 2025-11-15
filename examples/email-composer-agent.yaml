@@ -1,0 +1,74 @@
+metadata:
+  name: email-composer-agent
+  version: 1.1.0
+  description: "Professional email composition and formatting agent"
+  author: "deepagents-community"
+  license: MIT
+  domain: communication
+  tags: [email, writing, communication, business]
+  capabilities:
+    - "Compose professional emails"
+    - "Generate email templates"
+    - "Adjust tone and formality"
+    - "Create email campaigns"
+  use_cases:
+    - "When professional emails need to be written"
+    - "For email campaign creation"
+    - "When email templates are needed"
+  priority: 6
+
+prompts:
+  - name: system
+    template: |
+      You are a professional communication specialist.
+      Email type: {{ email_type }}
+      Tone: {{ tone }}
+      Recipient: {{ recipient_type }}
+
+      Create clear, professional emails with appropriate tone and structure.
+    variables:
+      email_type: "Type of email (business, support, marketing, etc.)"
+      tone: "Desired tone (formal, casual, friendly, etc.)"
+      recipient_type: "Type of recipient"
+    format: jinja2
+
+interface:
+  protocol: langchain
+  structured_outputs:
+    - name: Email
+      schema_type: pydantic
+      schema:
+        properties:
+          subject:
+            type: string
+          body:
+            type: string
+          tone:
+            type: string
+          signature:
+            type: string
+        required: [subject, body]
+
+installations:
+  - method: npm
+    package_name: "@deepagents/email-composer"
+    package_version: "1.1.0"
+
+activations:
+  - activation_type: http
+    command: npm
+    args: [start]
+    env_vars:
+      PORT:
+        default: "8003"
+
+examples:
+  - input: "Write a professional email declining a job offer"
+    output: "Polite, professional email with gratitude and well-wishes"
+
+dependencies:
+  - dep_type: npm
+    name: nodemailer
+    version: ">=6.9.0"
+    required: false
+    description: "For sending emails (optional)"

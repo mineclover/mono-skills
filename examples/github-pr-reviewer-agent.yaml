@@ -1,0 +1,121 @@
+metadata:
+  name: github-pr-reviewer-agent
+  version: 2.0.1
+  description: "Automated GitHub Pull Request review and analysis agent"
+  author: "deepagents-team"
+  license: MIT
+  domain: code-review
+  tags: [github, pull-request, code-review, ci-cd]
+  capabilities:
+    - "Review pull requests automatically"
+    - "Check code quality and style"
+    - "Identify potential bugs"
+    - "Suggest improvements"
+  use_cases:
+    - "When PRs need automated review"
+    - "For code quality checks"
+    - "When consistent review standards are needed"
+  priority: 14
+
+prompts:
+  - name: system
+    template: |
+      You are an experienced code reviewer.
+      Repository: {{ repo }}
+      Programming language: {{ language }}
+
+      Review the PR for:
+      - Code quality and style
+      - Potential bugs
+      - Security issues
+      - Performance concerns
+      - Test coverage
+    variables:
+      repo: "Repository name"
+      language: "Primary programming language"
+    format: jinja2
+
+interface:
+  protocol: langchain
+  tools:
+    - name: fetch_pr
+      description: "Fetch PR details from GitHub"
+      parameters:
+        repo:
+          type: string
+        pr_number:
+          type: integer
+      required_params: [repo, pr_number]
+
+    - name: post_review
+      description: "Post review comments to GitHub"
+      parameters:
+        repo:
+          type: string
+        pr_number:
+          type: integer
+        comments:
+          type: array
+      required_params: [repo, pr_number, comments]
+
+  structured_outputs:
+    - name: PRReview
+      schema_type: pydantic
+      schema:
+        properties:
+          overall_assessment:
+            type: string
+            enum: [approve, request_changes, comment]
+          summary:
+            type: string
+          issues:
+            type: array
+            items:
+              type: object
+              properties:
+                file:
+                  type: string
+                line:
+                  type: integer
+                severity:
+                  type: string
+                comment:
+                  type: string
+          suggestions:
+            type: array
+            items:
+              type: string
+        required: [overall_assessment, summary]
+
+installations:
+  - method: git
+    repository: https://github.com/deepagents-team/github-pr-reviewer
+    branch: main
+    post_install_commands:
+      - npm install
+
+activations:
+  - activation_type: http
+    command: npm
+    args: [start]
+    env_vars:
+      GITHUB_TOKEN:
+        required: true
+        description: "GitHub API token"
+      OPENAI_API_KEY:
+        required: true
+
+examples:
+  - input: "Review PR #123 in myorg/myrepo"
+    output: "Detailed review with 5 comments and approval recommendation"
+
+dependencies:
+  - dep_type: npm
+    name: "@octokit/rest"
+    version: ">=20.0.0"
+    required: true
+
+  - dep_type: api
+    name: github
+    required: true
+    description: "GitHub API access"

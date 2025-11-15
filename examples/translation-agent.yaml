@@ -1,0 +1,87 @@
+metadata:
+  name: translation-agent
+  version: 2.0.0
+  description: "Multi-language translation and localization agent"
+  author: "deepagents-team"
+  license: MIT
+  domain: translation
+  tags: [translation, localization, i18n, multilingual]
+  capabilities:
+    - "Translate text between 100+ languages"
+    - "Preserve formatting and context"
+    - "Handle technical and domain-specific terminology"
+    - "Localize content for different regions"
+  use_cases:
+    - "When text needs to be translated"
+    - "For internationalization of content"
+    - "When localization is required"
+  priority: 9
+
+prompts:
+  - name: system
+    template: |
+      You are a professional translator.
+      Source language: {{ source_lang }}
+      Target language: {{ target_lang }}
+      Domain: {{ domain }}
+
+      Provide accurate, natural translations while preserving meaning and tone.
+    variables:
+      source_lang: "Source language code"
+      target_lang: "Target language code"
+      domain: "Domain/field of content"
+    format: jinja2
+
+interface:
+  protocol: langchain
+  tools:
+    - name: translate
+      description: "Translate text"
+      parameters:
+        text:
+          type: string
+        source_lang:
+          type: string
+        target_lang:
+          type: string
+        domain:
+          type: string
+      required_params: [text, source_lang, target_lang]
+
+  structured_outputs:
+    - name: Translation
+      schema_type: pydantic
+      schema:
+        properties:
+          translated_text:
+            type: string
+          confidence:
+            type: number
+          alternatives:
+            type: array
+            items:
+              type: string
+        required: [translated_text, confidence]
+
+installations:
+  - method: pip
+    package_name: deepagents-translation
+    package_version: "2.0.0"
+
+activations:
+  - activation_type: stdio
+    command: python
+    args: [-m, deepagents_translation]
+    env_vars:
+      OPENAI_API_KEY:
+        required: true
+
+examples:
+  - input: "Translate this technical documentation to Japanese"
+    output: "Accurate Japanese translation preserving technical terms"
+
+dependencies:
+  - dep_type: python
+    name: langdetect
+    version: ">=1.0.9"
+    required: false

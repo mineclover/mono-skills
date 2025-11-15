@@ -1,0 +1,107 @@
+metadata:
+  name: data-analysis-agent
+  version: 2.1.0
+  description: "Advanced data analysis and visualization agent for exploring datasets"
+  author: "deepagents-team"
+  license: MIT
+  domain: data-science
+  tags: [data-analysis, visualization, statistics, pandas, ml]
+  capabilities:
+    - "Analyze datasets and provide statistical insights"
+    - "Create visualizations and charts"
+    - "Perform data cleaning and preprocessing"
+    - "Run basic machine learning models"
+  use_cases:
+    - "When user needs to analyze CSV or Excel data"
+    - "For data visualization tasks"
+    - "When statistical analysis is required"
+  priority: 12
+
+prompts:
+  - name: system
+    template: |
+      You are an expert data analyst.
+      Dataset: {{ dataset_name }}
+      Analysis goal: {{ goal }}
+
+      Provide clear insights, visualizations, and actionable recommendations.
+    variables:
+      dataset_name: "Name of the dataset"
+      goal: "Analysis goal"
+    format: jinja2
+
+interface:
+  protocol: langchain
+  tools:
+    - name: analyze_data
+      description: "Analyze dataset statistics"
+      parameters:
+        file_path:
+          type: string
+        columns:
+          type: array
+          items:
+            type: string
+      required_params: [file_path]
+
+    - name: create_visualization
+      description: "Create charts and plots"
+      parameters:
+        chart_type:
+          type: string
+          enum: [bar, line, scatter, histogram, heatmap]
+        data:
+          type: object
+      required_params: [chart_type, data]
+
+  structured_outputs:
+    - name: DataAnalysisReport
+      schema_type: pydantic
+      schema:
+        properties:
+          summary:
+            type: string
+          key_metrics:
+            type: object
+          insights:
+            type: array
+            items:
+              type: string
+          recommendations:
+            type: array
+            items:
+              type: string
+        required: [summary, key_metrics, insights]
+
+installations:
+  - method: pip
+    package_name: deepagents-data-analysis
+    package_version: "2.1.0"
+
+activations:
+  - activation_type: stdio
+    command: python
+    args: [-m, deepagents_data_analysis]
+    env_vars:
+      OPENAI_API_KEY:
+        required: true
+
+examples:
+  - input: "Analyze this sales dataset and find trends"
+    output: "Comprehensive analysis with 5 visualizations and key insights"
+
+dependencies:
+  - dep_type: python
+    name: pandas
+    version: ">=2.0.0"
+    required: true
+
+  - dep_type: python
+    name: matplotlib
+    version: ">=3.7.0"
+    required: true
+
+  - dep_type: python
+    name: seaborn
+    version: ">=0.12.0"
+    required: false

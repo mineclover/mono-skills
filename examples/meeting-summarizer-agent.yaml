@@ -1,0 +1,107 @@
+metadata:
+  name: meeting-summarizer-agent
+  version: 1.0.2
+  description: "Meeting transcription and summarization agent"
+  author: "deepagents-team"
+  license: MIT
+  domain: productivity
+  tags: [meetings, summarization, transcription, notes]
+  capabilities:
+    - "Transcribe meeting audio"
+    - "Generate meeting summaries"
+    - "Extract action items"
+    - "Identify key decisions"
+  use_cases:
+    - "When meeting notes need to be generated"
+    - "For transcribing recorded meetings"
+    - "When action items need to be tracked"
+  priority: 10
+
+prompts:
+  - name: system
+    template: |
+      You are a meeting notes specialist.
+      Meeting type: {{ meeting_type }}
+      Duration: {{ duration }}
+
+      Create concise summaries with:
+      1. Key discussion points
+      2. Decisions made
+      3. Action items with owners
+      4. Follow-up items
+    variables:
+      meeting_type: "Type of meeting"
+      duration: "Meeting duration"
+    format: jinja2
+
+interface:
+  protocol: langchain
+  tools:
+    - name: transcribe_audio
+      description: "Transcribe meeting audio"
+      parameters:
+        audio_file:
+          type: string
+        language:
+          type: string
+      required_params: [audio_file]
+
+  structured_outputs:
+    - name: MeetingSummary
+      schema_type: pydantic
+      schema:
+        properties:
+          title:
+            type: string
+          date:
+            type: string
+          participants:
+            type: array
+            items:
+              type: string
+          summary:
+            type: string
+          key_points:
+            type: array
+            items:
+              type: string
+          decisions:
+            type: array
+            items:
+              type: string
+          action_items:
+            type: array
+            items:
+              type: object
+              properties:
+                task:
+                  type: string
+                owner:
+                  type: string
+                due_date:
+                  type: string
+        required: [title, summary, action_items]
+
+installations:
+  - method: pip
+    package_name: deepagents-meeting-summarizer
+    package_version: "1.0.2"
+
+activations:
+  - activation_type: stdio
+    command: python
+    args: [-m, deepagents_meeting_summarizer]
+    env_vars:
+      OPENAI_API_KEY:
+        required: true
+
+examples:
+  - input: "Summarize this 1-hour team standup recording"
+    output: "Concise summary with 5 decisions and 8 action items"
+
+dependencies:
+  - dep_type: python
+    name: openai-whisper
+    version: ">=20230314"
+    required: true
+    description: "For audio transcription"

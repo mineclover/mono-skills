@@ -47,6 +47,7 @@ class SubAgentModel(Base):
     activations = relationship("SubAgentActivationModel", back_populates="subagent", cascade="all, delete-orphan")
     dependencies = relationship("DependencyModel", back_populates="subagent", cascade="all, delete-orphan")
     tools = relationship("ToolModel", back_populates="subagent", cascade="all, delete-orphan")
+    deployments = relationship("DeploymentModel", back_populates="subagent", cascade="all, delete-orphan")
 
     def get_tags(self) -> List[str]:
         return json.loads(self.tags) if self.tags else []
@@ -234,6 +235,7 @@ class ToolModel(Base):
     subagent = relationship("SubAgentModel", back_populates="tools")
     prompts = relationship("ToolPromptModel", back_populates="tool", cascade="all, delete-orphan")
     activations = relationship("ToolActivationModel", back_populates="tool", cascade="all, delete-orphan")
+    deployments = relationship("DeploymentModel", back_populates="tool", cascade="all, delete-orphan")
 
     def get_tags(self) -> List[str]:
         return json.loads(self.tags) if self.tags else []

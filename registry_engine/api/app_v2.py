@@ -8,6 +8,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from registry_engine.database.models_v2 import Base
+from registry_engine.database.deployment_models import DeploymentModel, DeploymentHealthLog, PlatformIntegration
 from sqlalchemy import create_engine
 
 
@@ -22,7 +23,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         None
     """
     # Startup: Initialize database
-    print("Initializing database (v2 schema)...")
+    print("Initializing database (v2 schema + deployments)...")
     engine = create_engine("sqlite:///data/registry_v2.db", echo=False)
     Base.metadata.create_all(bind=engine)
     print("Database initialized successfully")
@@ -91,6 +92,8 @@ from registry_engine.api.routes import (
     search_v2,
     search_advanced,
     contributions,
+    deployments,
+    tool_deployments,
 )
 from registry_engine.api.routes.subagents import router as subagents_router_v1
 
@@ -99,6 +102,8 @@ app.include_router(tools.router, prefix="/tools", tags=["Tools"])
 app.include_router(search_v2.router, prefix="/search", tags=["Search"])
 app.include_router(search_advanced.router, prefix="/search", tags=["Advanced Search"])
 app.include_router(contributions.router, prefix="/contribute", tags=["Contributions"])
+app.include_router(deployments.router, tags=["Deployments"])
+app.include_router(tool_deployments.router, tags=["Tool Deployments"])
 
 # V1 compat (SubAgents)
 app.include_router(subagents_router_v1, prefix="/subagents", tags=["SubAgents"])

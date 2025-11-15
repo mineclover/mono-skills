@@ -18,6 +18,7 @@ SubAgent Registry는 **도구(Tools) 중심**의 아키텍처로 설계된 AI �
 - 🔌 **구조화된 출력**: Pydantic + TypeScript + JSON Schema 스키마
 - 🎯 **고급 검색**: 카테고리, 태그, 프로토콜 기반 필터링
 - 🤝 **사용자 기여**: YAML/JSON을 통한 도구 추가 API
+- 🚀 **런타임 통합**: Agno 등 실행 플랫폼과 통합 (배포 인스턴스 관리)
 
 ### 레지스트리의 역할
 
@@ -79,6 +80,7 @@ curl "http://localhost:8000/tools/web_search/install"
 | [QUICKSTART.md](QUICKSTART.md) | 5분 빠른 시작 가이드 |
 | [USER_GUIDE.md](USER_GUIDE.md) | 상세 사용자 가이드 (검색, API, 예제) |
 | [CONTRIBUTION_GUIDE.md](CONTRIBUTION_GUIDE.md) | 도구 기여 가이드 (YAML 구조, 검증) |
+| [AGNO_INTEGRATION.md](AGNO_INTEGRATION.md) | Agno 등 실행 플랫폼 통합 가이드 |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Tool-centric 아키텍처 설계 |
 | [INSTALLATION_ACTIVATION.md](INSTALLATION_ACTIVATION.md) | 설치-실행 관계 설명 |
 | [PRD.md](PRD.md) | 원본 제품 요구사항 문서 |
@@ -123,6 +125,36 @@ curl -X POST "http://localhost:8000/contribute/yaml/validate" \
 curl -X POST "http://localhost:8000/contribute/yaml/import" \
   -F "file=@my-toolkit.yaml"
 ```
+
+### 🚀 런타임 통합 (Agno Integration)
+
+Agno 등의 실행 플랫폼과 통합하여 실행 중인 에이전트를 발견하고 사용:
+
+```python
+# 1. Agno에서 배포한 에이전트를 Registry에 등록
+await client.post(
+    "http://localhost:8000/deployments/",
+    json={
+        "tool_name": "web_search",
+        "deployment_name": "production-web-search",
+        "environment": "production",
+        "endpoint": {
+            "url": "https://api.agno.example.com/agents/web-search",
+            "method": "POST"
+        },
+        "metadata": {"platform": "agno"}
+    }
+)
+
+# 2. 실행 중인 도구 발견
+response = await client.get("http://localhost:8000/tools/running")
+running_tools = response.json()['results']
+
+# 3. Agno 플랫폼의 도구만 조회
+response = await client.get("http://localhost:8000/tools/by-platform/agno")
+```
+
+자세한 내용은 [AGNO_INTEGRATION.md](AGNO_INTEGRATION.md) 참조
 
 ## 지원 플랫폼
 
@@ -199,6 +231,16 @@ mono-skills/
 - `POST /contribute/yaml/import` - YAML 임포트
 - `POST /contribute/tools/submit` - 도구 제출
 - `POST /contribute/subagents/submit` - SubAgent 제출
+
+### 배포 관리 (Deployments)
+
+- `POST /deployments/` - 배포 등록
+- `GET /deployments/{deployment_id}` - 배포 정보 조회
+- `POST /deployments/search` - 배포 검색
+- `POST /deployments/{deployment_id}/health` - 상태 업데이트
+- `GET /tools/{tool_name}/deployments` - 도구의 배포 목록
+- `GET /tools/running` - 실행 중인 도구 조회
+- `GET /tools/by-platform/{platform}` - 플랫폼별 도구 조회
 
 API 문서: http://localhost:8000/docs
 
